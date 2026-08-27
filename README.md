@@ -10,6 +10,7 @@ Place the published launcher, the INI file, your background, and episode folders
 ```text
 Launch Back to the Future - The Game.exe
 launcher.ini
+launcher.ico
 background.jpg
 Episode 1/
   BackToTheFuture101.exe
