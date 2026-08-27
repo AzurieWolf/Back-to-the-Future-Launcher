@@ -3,12 +3,16 @@ namespace BackToTheFutureLauncher;
 internal sealed class TelltalePreferences
 {
     private const ulong FloatTypeKey = 0xBAE4CBD77F139A91;
+    private const ulong IntTypeKey = 0x99D7C52EA7F0F97D;
+    private const ulong BoolTypeKey = 0x9004C5587575D6C0;
     private const ulong VolumeAmbientKey = 0x8AE2D5ACAEEB9A75;
     private const ulong VolumeMusicKey = 0xE0F0CA9C0B601F3A;
     private const ulong VolumeSoundKey = 0xF1CD8FFFFE1CB324;
     private const ulong VolumeVoiceKey = 0xD6C6E8FBC7217F7A;
     private const ulong RenderQualityKey = 0x4344F72EAEC1940E;
+    private const ulong ShadowQualityKey = 0x0090300E8EA57C1D;
     private const ulong AntiAliasingKey = 0xA53A6082D030556C;
+    private const ulong EnableEffectsKey = 0x1555060F678714B6;
     private const ulong EnableSubtitlesKey = 0x01645B8163C2A614;
     private const ulong WindowedKey = 0x2812F4B4AC1DD8D2;
     private const ulong WindowSizeKey = 0x64CDE7932ABC79E4;
@@ -25,7 +29,9 @@ internal sealed class TelltalePreferences
     public int Height { get; set; }
     public bool Windowed { get; set; }
     public int RenderQuality { get; set; }
+    public int ShadowQuality { get; set; }
     public int AntiAliasingQuality { get; set; }
+    public bool Effects { get; set; }
     public bool Subtitles { get; set; }
     public float MusicVolume { get; set; }
     public float VoiceVolume { get; set; }
@@ -39,6 +45,8 @@ internal sealed class TelltalePreferences
         (float width, float height) = ReadVector2(data, windowed ? WindowSizeKey : FullscreenSizeKey);
 
         bool hasVoiceVolume = TryFindValueOffset(data, VolumeVoiceKey, out int voiceOffset);
+        bool hasShadowQuality = TryFindValueOffset(data, ShadowQualityKey, out int shadowOffset);
+        bool hasEffects = TryFindValueOffset(data, EnableEffectsKey, out int effectsOffset);
         float ambientVolume = ReadSingle(data, VolumeAmbientKey);
         float soundVolume = ReadSingle(data, VolumeSoundKey);
 
@@ -48,7 +56,11 @@ internal sealed class TelltalePreferences
             Height = (int)MathF.Round(height),
             Windowed = windowed,
             RenderQuality = ReadInt32(data, RenderQualityKey),
+            ShadowQuality = hasShadowQuality
+                ? BitConverter.ToInt32(Decode(data, shadowOffset, sizeof(int)))
+                : 2,
             AntiAliasingQuality = ReadInt32(data, AntiAliasingKey),
+            Effects = hasEffects ? ReadBooleanAt(data, effectsOffset) : true,
             Subtitles = ReadBoolean(data, EnableSubtitlesKey),
             MusicVolume = ReadSingle(data, VolumeMusicKey),
             VoiceVolume = hasVoiceVolume
@@ -66,6 +78,8 @@ internal sealed class TelltalePreferences
         byte[] data = ReadAndValidate(path);
         if (HasVoiceVolume)
             data = WriteOrInsertSingle(data, VolumeVoiceKey, Math.Clamp(VoiceVolume, 0F, 1F));
+        data = WriteOrInsertInt32(data, ShadowQualityKey, Math.Clamp(ShadowQuality, 0, 2));
+        data = WriteOrInsertBoolean(data, EnableEffectsKey, Effects);
         WriteVector2(data, WindowSizeKey, Width, Height);
         WriteVector2(data, FullscreenSizeKey, Width, Height);
         WriteBoolean(data, WindowedKey, Windowed);
@@ -111,8 +125,11 @@ internal sealed class TelltalePreferences
         BitConverter.ToSingle(Decode(data, FindValueOffset(data, key), sizeof(float)));
 
     private static bool ReadBoolean(byte[] data, ulong key)
+        => ReadBooleanAt(data, FindValueOffset(data, key));
+
+    private static bool ReadBooleanAt(byte[] data, int offset)
     {
-        byte value = (byte)(data[FindValueOffset(data, key)] ^ 0xFF);
+        byte value = (byte)(data[offset] ^ 0xFF);
         return value switch
         {
             (byte)'0' => false,
@@ -135,22 +152,34 @@ internal sealed class TelltalePreferences
     private static void WriteSingle(byte[] data, ulong key, float value) =>
         EncodeInto(data, FindValueOffset(data, key), BitConverter.GetBytes(value));
 
-    private static byte[] WriteOrInsertSingle(byte[] data, ulong key, float value)
+    private static byte[] WriteOrInsertSingle(byte[] data, ulong key, float value) =>
+        WriteOrInsertValue(data, FloatTypeKey, key, BitConverter.GetBytes(value));
+
+    private static byte[] WriteOrInsertInt32(byte[] data, ulong key, int value) =>
+        WriteOrInsertValue(data, IntTypeKey, key, BitConverter.GetBytes(value));
+
+    private static byte[] WriteOrInsertBoolean(byte[] data, ulong key, bool value) =>
+        WriteOrInsertValue(data, BoolTypeKey, key,
+            [(byte)(value ? '1' : '0')]);
+
+    private static byte[] WriteOrInsertValue(
+        byte[] data, ulong typeKey, ulong key, byte[] value)
     {
         if (TryFindValueOffset(data, key, out int existingOffset))
         {
-            EncodeInto(data, existingOffset, BitConverter.GetBytes(value));
+            EncodeInto(data, existingOffset, value);
             return data;
         }
 
-        int groupOffset = FindValueOffset(data, FloatTypeKey) - 12;
+        int groupOffset = FindValueOffset(data, typeKey) - 12;
         int countOffset = groupOffset + 12;
         int count = BitConverter.ToInt32(Decode(data, countOffset, sizeof(int)));
         int entriesOffset = countOffset + sizeof(int);
-        int insertionOffset = entriesOffset + count * 16;
+        int entrySize = 12 + value.Length;
+        int insertionOffset = entriesOffset + count * entrySize;
         for (int index = 0; index < count; index++)
         {
-            int entryOffset = entriesOffset + index * 16;
+            int entryOffset = entriesOffset + index * entrySize;
             ulong existingKey = ~BitConverter.ToUInt64(data, entryOffset);
             if (existingKey > key)
             {
@@ -159,19 +188,21 @@ internal sealed class TelltalePreferences
             }
         }
 
-        var expanded = new byte[data.Length + 16];
+        var expanded = new byte[data.Length + entrySize];
         Buffer.BlockCopy(data, 0, expanded, 0, insertionOffset);
-        Buffer.BlockCopy(data, insertionOffset, expanded, insertionOffset + 16,
+        Buffer.BlockCopy(data, insertionOffset, expanded, insertionOffset + entrySize,
             data.Length - insertionOffset);
         Buffer.BlockCopy(BitConverter.GetBytes(~key), 0, expanded, insertionOffset, 8);
         expanded.AsSpan(insertionOffset + 8, 4).Fill(0xFF);
-        EncodeInto(expanded, insertionOffset + 12, BitConverter.GetBytes(value));
+        EncodeInto(expanded, insertionOffset + 12, value);
         EncodeInto(expanded, countOffset, BitConverter.GetBytes(count + 1));
 
-        int propertyBlockSizeOffset = groupOffset - 8;
+        int floatGroupOffset = FindValueOffset(expanded, FloatTypeKey) - 12;
+        int propertyBlockSizeOffset = floatGroupOffset - 8;
         int propertyBlockSize = BitConverter.ToInt32(
             Decode(expanded, propertyBlockSizeOffset, sizeof(int)));
-        EncodeInto(expanded, propertyBlockSizeOffset, BitConverter.GetBytes(propertyBlockSize + 16));
+        EncodeInto(expanded, propertyBlockSizeOffset,
+            BitConverter.GetBytes(propertyBlockSize + entrySize));
         return expanded;
     }
 

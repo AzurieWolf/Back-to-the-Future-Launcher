@@ -14,7 +14,9 @@ internal sealed class PreferencesForm : Form
     private readonly ComboBox _displayMode = new();
     private readonly ComboBox _resolution = new();
     private readonly NumericUpDown _renderQuality = Number(1, 9);
+    private readonly NumericUpDown _shadowQuality = Number(0, 2);
     private readonly NumericUpDown _antiAliasing = Number(0, 3);
+    private readonly CheckBox _effects = new();
     private readonly CheckBox _subtitles = new();
     private readonly DarkSlider _musicVolume = new();
     private readonly DarkSlider _voiceVolume = new();
@@ -26,7 +28,7 @@ internal sealed class PreferencesForm : Form
         _paths = paths;
         _preferences = preferences;
         Text = "Settings — All Episodes";
-        ClientSize = new Size(510, 535);
+        ClientSize = new Size(510, 605);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
@@ -69,15 +71,15 @@ internal sealed class PreferencesForm : Form
         var table = new TableLayoutPanel
         {
             ColumnCount = 2,
-            RowCount = 8,
+            RowCount = 10,
             Location = new Point(30, 91),
-            Size = new Size(450, 342),
+            Size = new Size(450, 420),
             BackColor = Color.Transparent
         };
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 46F));
         table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 54F));
         for (int row = 0; row < table.RowCount; row++)
-            table.RowStyles.Add(new RowStyle(SizeType.Absolute, row < 5 ? 39F : 46F));
+            table.RowStyles.Add(new RowStyle(SizeType.Absolute, row < 7 ? 39F : 46F));
 
         _displayMode.DropDownStyle = ComboBoxStyle.DropDownList;
         _displayMode.Items.AddRange(["On", "Off"]);
@@ -97,7 +99,8 @@ internal sealed class PreferencesForm : Form
             new ResolutionOption(3440, 1440),
             new ResolutionOption(3840, 2160)
         });
-        foreach (Control input in new Control[] { _displayMode, _resolution, _renderQuality, _antiAliasing })
+        foreach (Control input in new Control[]
+            { _displayMode, _resolution, _renderQuality, _shadowQuality, _antiAliasing })
         {
             input.BackColor = Color.FromArgb(31, 38, 48);
             input.ForeColor = Color.White;
@@ -107,15 +110,21 @@ internal sealed class PreferencesForm : Form
         _subtitles.Text = "Enabled";
         _subtitles.AutoSize = true;
         _subtitles.ForeColor = ForeColor;
+        _effects.Text = "Enabled";
+        _effects.AutoSize = true;
+        _effects.ForeColor = ForeColor;
+        _renderQuality.ValueChanged += (_, _) => UpdateAdvancedGraphicsAvailability();
 
         AddRow(table, 0, "Full screen", _displayMode);
         AddRow(table, 1, "Screen resolution", _resolution);
         AddRow(table, 2, "Graphics quality (1–9)", _renderQuality);
-        AddRow(table, 3, "Anti-aliasing (0–3)", _antiAliasing);
-        AddRow(table, 4, "Subtitles", _subtitles);
-        AddRow(table, 5, "Music volume", _musicVolume);
-        AddRow(table, 6, "Voice volume", _voiceVolume);
-        AddRow(table, 7, "Effects volume", _effectsVolume);
+        AddRow(table, 3, "Shadow quality (0–2)", _shadowQuality);
+        AddRow(table, 4, "Anti-aliasing (0–3)", _antiAliasing);
+        AddRow(table, 5, "Effects", _effects);
+        AddRow(table, 6, "Subtitles", _subtitles);
+        AddRow(table, 7, "Music volume", _musicVolume);
+        AddRow(table, 8, "Voice volume", _voiceVolume);
+        AddRow(table, 9, "Effects volume", _effectsVolume);
 
         if (!_preferences.HasVoiceVolume)
         {
@@ -155,11 +164,14 @@ internal sealed class PreferencesForm : Form
         _resolution.SelectedItem = currentResolution;
         _displayMode.SelectedIndex = _preferences.Windowed ? 1 : 0;
         _renderQuality.Value = Math.Clamp(_preferences.RenderQuality, 1, 9);
+        _shadowQuality.Value = Math.Clamp(_preferences.ShadowQuality, 0, 2);
         _antiAliasing.Value = Math.Clamp(_preferences.AntiAliasingQuality, 0, 3);
+        _effects.Checked = _preferences.Effects;
         _subtitles.Checked = _preferences.Subtitles;
         _musicVolume.Value = Percent(_preferences.MusicVolume);
         _voiceVolume.Value = Percent(_preferences.VoiceVolume);
         _effectsVolume.Value = Percent(_preferences.EffectsVolume);
+        UpdateAdvancedGraphicsAvailability();
     }
 
     private void SavePreferences()
@@ -171,7 +183,9 @@ internal sealed class PreferencesForm : Form
         _preferences.Height = resolution.Height;
         _preferences.Windowed = _displayMode.SelectedIndex == 1;
         _preferences.RenderQuality = (int)_renderQuality.Value;
+        _preferences.ShadowQuality = (int)_shadowQuality.Value;
         _preferences.AntiAliasingQuality = (int)_antiAliasing.Value;
+        _preferences.Effects = _effects.Checked;
         _preferences.Subtitles = _subtitles.Checked;
         _preferences.MusicVolume = _musicVolume.Value / 100F;
         if (_preferences.HasVoiceVolume)
@@ -206,6 +220,13 @@ internal sealed class PreferencesForm : Form
     private static int Percent(float value) =>
         Math.Clamp((int)MathF.Round(value * 100F), 0, 100);
 
+    private void UpdateAdvancedGraphicsAvailability()
+    {
+        bool enabled = _renderQuality.Value > 6;
+        _shadowQuality.Enabled = enabled;
+        _effects.Enabled = enabled;
+    }
+
     private static void AddRow(TableLayoutPanel table, int row, string text, Control input)
     {
         table.Controls.Add(new Label
@@ -223,7 +244,7 @@ internal sealed class PreferencesForm : Form
         var button = new Button
         {
             Text = text,
-            Location = new Point(x, 467),
+            Location = new Point(x, 537),
             Size = new Size(104, 42),
             BackColor = background,
             ForeColor = foreground,
