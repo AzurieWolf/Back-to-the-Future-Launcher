@@ -4,6 +4,10 @@ A better launcher for Back to the Future: The Game by Telltale Games.
 
 This launcher is a small, fixed-size Windows launcher that reads its episode list and background image from `launcher.ini`.
 
+Preview:
+<img width="1026" height="619" alt="Screenshot 2026-08-27 070034" src="https://github.com/user-attachments/assets/2c1f56e9-933d-4232-8706-c80e65210577" />
+<img width="512" height="644" alt="Screenshot 2026-08-27 070348" src="https://github.com/user-attachments/assets/73e00a17-b7d2-442a-a9b7-7c35e4f607cc" />
+
 ## Folder layout
 
 Place the published launcher, the INI file, your background, and episode folders together:
