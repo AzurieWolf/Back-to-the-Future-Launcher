@@ -8,13 +8,19 @@ with a small, fixed-size Windows launcher that reads its episode list and backgr
 Place the published launcher, the INI file, your background, and episode folders together:
 
 ```text
-Launcher.exe
+Launch Back to the Future - The Game.exe
 launcher.ini
 background.jpg
 Episode 1/
   BackToTheFuture101.exe
 Episode 2/
   BackToTheFuture102.exe
+Episode 3/
+  BackToTheFuture103.exe
+Episode 4/
+  BackToTheFuture104.exe
+Episode 5/
+  BackToTheFuture105.exe
 ```
 
 All relative paths in `launcher.ini` start from the folder containing `Launcher.exe`. Both `/` and `\` separators work. The game is started with its own episode folder as the working directory. While it runs, episode selection and Settings are locked and the Play button becomes **Force Stop**. A forced stop keeps the launcher open; if the game exits normally, the launcher closes automatically.
