@@ -13,6 +13,7 @@ internal static class Program
         try
         {
             LauncherConfig config = LauncherConfig.Load(configPath);
+            EpisodePreferenceInstaller.InstallMissing();
             Application.Run(new LauncherForm(config, baseDirectory));
         }
         catch (Exception ex)

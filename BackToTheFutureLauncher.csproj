@@ -13,6 +13,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="episode-preferences\Episode 1\prefs.prop"
+                      LogicalName="EpisodePreferences.Episode1.prefs.prop" />
+    <EmbeddedResource Include="episode-preferences\Back to the Future 2\prefs.prop"
+                      LogicalName="EpisodePreferences.Episode2.prefs.prop" />
+    <EmbeddedResource Include="episode-preferences\Back to the Future 3\prefs.prop"
+                      LogicalName="EpisodePreferences.Episode3.prefs.prop" />
+    <EmbeddedResource Include="episode-preferences\Back to the Future 4\prefs.prop"
+                      LogicalName="EpisodePreferences.Episode4.prefs.prop" />
+    <EmbeddedResource Include="episode-preferences\Back to the Future 5\prefs.prop"
+                      LogicalName="EpisodePreferences.Episode5.prefs.prop" />
     <None Update="launcher.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
