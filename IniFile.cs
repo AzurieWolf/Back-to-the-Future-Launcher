@@ -43,7 +43,7 @@ internal sealed class IniFile
                 continue;
 
             string key = line[..separator].Trim();
-            string value = line[(separator + 1)..].Trim();
+            string value = ParseValue(line[(separator + 1)..]);
             ini._sections[currentSection][key] = value;
         }
 
@@ -55,4 +55,12 @@ internal sealed class IniFile
         values.TryGetValue(key, out string? value)
             ? value
             : null;
+
+    private static string ParseValue(string rawValue)
+    {
+        string value = rawValue.Trim();
+        if (value.Length >= 2 && value[0] == (char)34 && value[^1] == (char)34)
+            return value[1..^1];
+        return value;
+    }
 }
