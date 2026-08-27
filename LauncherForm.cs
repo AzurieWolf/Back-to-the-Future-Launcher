@@ -10,6 +10,7 @@ internal sealed class LauncherForm : Form
     private readonly string _baseDirectory;
     private readonly List<EpisodeOption> _episodeOptions = [];
     private readonly Button _playButton = new();
+    private readonly Button _settingsButton = new();
     private readonly Label _statusLabel = new();
     private Image? _backgroundImage;
     private Icon? _windowIcon;
@@ -159,9 +160,21 @@ internal sealed class LauncherForm : Form
         _playButton.FlatAppearance.BorderSize = 0;
         _playButton.Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold);
         _playButton.Cursor = Cursors.Hand;
-        _playButton.Location = new Point(35, content.Height - 101);
-        _playButton.Size = new Size(content.Width - 70, 46);
+        _playButton.Location = new Point(157, content.Height - 101);
+        _playButton.Size = new Size(content.Width - 192, 46);
         _playButton.Click += (_, _) => LaunchSelectedEpisode();
+
+        _settingsButton.Text = "SETTINGS";
+        _settingsButton.Enabled = false;
+        _settingsButton.BackColor = Color.FromArgb(39, 47, 58);
+        _settingsButton.ForeColor = Color.White;
+        _settingsButton.FlatStyle = FlatStyle.Flat;
+        _settingsButton.FlatAppearance.BorderSize = 0;
+        _settingsButton.Font = new Font("Segoe UI Semibold", 9.5F, FontStyle.Bold);
+        _settingsButton.Cursor = Cursors.Hand;
+        _settingsButton.Location = new Point(35, content.Height - 101);
+        _settingsButton.Size = new Size(112, 46);
+        _settingsButton.Click += (_, _) => OpenEpisodeSettings();
 
         _statusLabel.AutoSize = false;
         _statusLabel.Text = "Select an episode";
@@ -175,6 +188,7 @@ internal sealed class LauncherForm : Form
         content.Controls.Add(heading);
         content.Controls.Add(subtitle);
         content.Controls.Add(episodeList);
+        content.Controls.Add(_settingsButton);
         content.Controls.Add(_playButton);
         content.Controls.Add(_statusLabel);
         Controls.Add(content);
@@ -217,8 +231,7 @@ internal sealed class LauncherForm : Form
 
     private void LaunchSelectedEpisode()
     {
-        Episode? episode = _episodeOptions
-            .FirstOrDefault(option => option.Checked)?.Episode;
+        Episode? episode = SelectedEpisode();
         if (episode is null)
             return;
 
@@ -255,6 +268,35 @@ internal sealed class LauncherForm : Form
         }
     }
 
+    private void OpenEpisodeSettings()
+    {
+        Episode? selectedEpisode = SelectedEpisode();
+        if (selectedEpisode is null || string.IsNullOrWhiteSpace(selectedEpisode.Preferences))
+            return;
+
+        List<string> preferencePaths = _config.Episodes
+            .Where(episode => !string.IsNullOrWhiteSpace(episode.Preferences))
+            .Select(episode => ResolveFromLauncher(episode.Preferences!))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        string sourcePath = ResolveFromLauncher(selectedEpisode.Preferences);
+
+        try
+        {
+            TelltalePreferences preferences = TelltalePreferences.Load(sourcePath);
+            using var settingsForm = new PreferencesForm(
+                selectedEpisode.Name, preferencePaths, preferences, _windowIcon);
+            if (settingsForm.ShowDialog(this) == DialogResult.OK)
+                _statusLabel.Text = $"Settings saved to all {preferencePaths.Count} episodes";
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"The episode settings could not be opened.\n\n{ex.Message}\n\nFile: {sourcePath}",
+                "Settings error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private void SelectEpisode(EpisodeOption selected)
     {
         foreach (EpisodeOption option in _episodeOptions)
@@ -264,12 +306,16 @@ internal sealed class LauncherForm : Form
         }
 
         _playButton.Enabled = true;
+        _settingsButton.Enabled = !string.IsNullOrWhiteSpace(selected.Episode.Preferences);
         _statusLabel.Text = "Ready to launch";
     }
 
+    private Episode? SelectedEpisode() =>
+        _episodeOptions.FirstOrDefault(option => option.Checked)?.Episode;
+
     private string ResolveFromLauncher(string configuredPath)
     {
-        string normalized = configuredPath.Trim().Trim('"')
+        string normalized = Environment.ExpandEnvironmentVariables(configuredPath.Trim().Trim('"'))
             .Replace('/', Path.DirectorySeparatorChar);
         return Path.GetFullPath(Path.IsPathRooted(normalized)
             ? normalized

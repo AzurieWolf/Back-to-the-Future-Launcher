@@ -48,7 +48,10 @@ height=600
 [episode1]
 name=Episode 1 - It's About Time!
 executable=Episode 1/BackToTheFuture101.exe
+preferences=%USERPROFILE%/Documents/Telltale Games/Episode 1/prefs.prop
 ```
+
+The optional `preferences` path enables the Settings button. It may be relative to `Launcher.exe`, absolute, or contain environment variables such as `%USERPROFILE%`. Settings are loaded from the selected episode, but **Save All** applies the complete profile to every configured episode. The editor supports screen resolution, full-screen mode, graphics quality, anti-aliasing, subtitles, and music/voice/effects volume. Effects updates both of the game's underlying Sound and Ambient channels. Every changed file gets a `prefs.prop.bak` backup.
 
 ## Build
 

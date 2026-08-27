@@ -1,6 +1,6 @@
 namespace BackToTheFutureLauncher;
 
-internal sealed record Episode(string Section, string Name, string Executable);
+internal sealed record Episode(string Section, string Name, string Executable, string? Preferences);
 
 internal sealed class LauncherConfig
 {
@@ -25,7 +25,7 @@ internal sealed class LauncherConfig
             string? name = ini.Get(section, "name");
             string? executable = ini.Get(section, "executable");
             if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(executable))
-                episodes.Add(new Episode(section, name, executable));
+                episodes.Add(new Episode(section, name, executable, ini.Get(section, "preferences")));
         }
 
         if (episodes.Count == 0)
