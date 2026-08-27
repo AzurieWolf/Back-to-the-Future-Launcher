@@ -88,6 +88,13 @@ internal sealed class EpisodeOption : Control
         base.OnLostFocus(e);
     }
 
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        _hovered = false;
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
@@ -98,7 +105,9 @@ internal sealed class EpisodeOption : Control
 
         Rectangle cardBounds = new(1, 1, Width - 3, Height - 3);
         using GraphicsPath card = RoundedRectangle(cardBounds, 7);
-        Color cardColor = Checked
+        Color cardColor = !Enabled
+            ? Color.FromArgb(8, 255, 255, 255)
+            : Checked
             ? Color.FromArgb(50, 19, 174, 235)
             : _hovered
                 ? Color.FromArgb(34, 255, 255, 255)
@@ -114,7 +123,9 @@ internal sealed class EpisodeOption : Control
 
         RectangleF outerCircle = new(14F, (Height - 18F) / 2F, 18F, 18F);
         using var ringPen = new Pen(
-            Checked ? Color.FromArgb(19, 174, 235) : Color.FromArgb(135, 146, 160),
+            !Enabled
+                ? Color.FromArgb(70, 82, 96)
+                : Checked ? Color.FromArgb(19, 174, 235) : Color.FromArgb(135, 146, 160),
             1.8F);
         graphics.DrawEllipse(ringPen, outerCircle);
 
@@ -126,7 +137,9 @@ internal sealed class EpisodeOption : Control
         }
 
         Rectangle textBounds = new(43, 0, Width - 52, Height);
-        Color textColor = Checked ? Color.White : Color.FromArgb(218, 224, 232);
+        Color textColor = !Enabled
+            ? Color.FromArgb(100, 110, 122)
+            : Checked ? Color.White : Color.FromArgb(218, 224, 232);
         TextRenderer.DrawText(
             graphics,
             Text,

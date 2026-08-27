@@ -17,7 +17,7 @@ Episode 2/
   BackToTheFuture102.exe
 ```
 
-All relative paths in `launcher.ini` start from the folder containing `Launcher.exe`. Both `/` and `\` separators work. The game is started with its own episode folder as the working directory, and the launcher closes after a successful start.
+All relative paths in `launcher.ini` start from the folder containing `Launcher.exe`. Both `/` and `\` separators work. The game is started with its own episode folder as the working directory. While it runs, episode selection and Settings are locked and the Play button becomes **Force Stop**. A forced stop keeps the launcher open; if the game exits normally, the launcher closes automatically.
 
 ## Application icon
 

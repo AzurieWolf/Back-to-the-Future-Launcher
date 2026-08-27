@@ -14,6 +14,8 @@ internal sealed class LauncherForm : Form
     private readonly Label _statusLabel = new();
     private Image? _backgroundImage;
     private Icon? _windowIcon;
+    private Process? _gameProcess;
+    private bool _forceStopRequested;
 
     public LauncherForm(LauncherConfig config, string baseDirectory)
     {
@@ -81,6 +83,12 @@ internal sealed class LauncherForm : Form
     {
         if (disposing)
         {
+            if (_gameProcess is not null)
+            {
+                _gameProcess.Exited -= GameProcessExited;
+                _gameProcess.Dispose();
+                _gameProcess = null;
+            }
             _backgroundImage?.Dispose();
             _windowIcon?.Dispose();
         }
@@ -162,7 +170,13 @@ internal sealed class LauncherForm : Form
         _playButton.Cursor = Cursors.Hand;
         _playButton.Location = new Point(157, content.Height - 101);
         _playButton.Size = new Size(content.Width - 192, 46);
-        _playButton.Click += (_, _) => LaunchSelectedEpisode();
+        _playButton.Click += (_, _) =>
+        {
+            if (_gameProcess is null)
+                LaunchSelectedEpisode();
+            else
+                ForceStopEpisode();
+        };
 
         _settingsButton.Text = "SETTINGS";
         _settingsButton.Enabled = false;
@@ -249,16 +263,33 @@ internal sealed class LauncherForm : Form
 
         try
         {
-            Process.Start(new ProcessStartInfo
+            var process = new Process
             {
-                FileName = executablePath,
-                WorkingDirectory = Path.GetDirectoryName(executablePath) ?? _baseDirectory,
-                UseShellExecute = true
-            });
-            Close();
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = executablePath,
+                    WorkingDirectory = Path.GetDirectoryName(executablePath) ?? _baseDirectory,
+                    UseShellExecute = true
+                },
+                EnableRaisingEvents = true
+            };
+            process.Exited += GameProcessExited;
+            _gameProcess = process;
+            _forceStopRequested = false;
+
+            if (!process.Start())
+                throw new InvalidOperationException("Windows did not start the episode process.");
+
+            SetGameRunningState(episode);
         }
         catch (Exception ex)
         {
+            if (_gameProcess is not null)
+            {
+                _gameProcess.Exited -= GameProcessExited;
+                _gameProcess.Dispose();
+                _gameProcess = null;
+            }
             _statusLabel.Text = "Launch failed";
             MessageBox.Show(
                 $"The episode could not be started.\n\n{ex.Message}",
@@ -266,6 +297,104 @@ internal sealed class LauncherForm : Form
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
+    }
+
+    private void ForceStopEpisode()
+    {
+        Process? process = _gameProcess;
+        if (process is null)
+            return;
+
+        try
+        {
+            if (process.HasExited)
+                return;
+
+            _forceStopRequested = true;
+            _playButton.Enabled = false;
+            _statusLabel.Text = "Stopping episode...";
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException) when (process.HasExited)
+        {
+            // The process exited in the instant after the user requested Force Stop.
+            // Keep the request flag set so the queued exit callback leaves the launcher open.
+        }
+        catch (Exception ex)
+        {
+            _forceStopRequested = false;
+            _playButton.Enabled = true;
+            _statusLabel.Text = "Could not stop episode";
+            MessageBox.Show(
+                $"The episode could not be stopped.\n\n{ex.Message}",
+                "Force stop failed",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+    }
+
+    private void GameProcessExited(object? sender, EventArgs e)
+    {
+        if (sender is not Process process || IsDisposed || !IsHandleCreated)
+            return;
+
+        try
+        {
+            BeginInvoke(new Action(() => CompleteGameProcessExit(process)));
+        }
+        catch (InvalidOperationException)
+        {
+            // The launcher window was closed while the game was exiting.
+        }
+    }
+
+    private void CompleteGameProcessExit(Process process)
+    {
+        if (!ReferenceEquals(process, _gameProcess))
+        {
+            process.Dispose();
+            return;
+        }
+
+        bool wasForceStopped = _forceStopRequested;
+        _forceStopRequested = false;
+        _gameProcess = null;
+        process.Exited -= GameProcessExited;
+        process.Dispose();
+
+        if (!wasForceStopped)
+        {
+            Close();
+            return;
+        }
+
+        RestoreReadyState();
+        _statusLabel.Text = "Episode force stopped";
+    }
+
+    private void SetGameRunningState(Episode episode)
+    {
+        foreach (EpisodeOption option in _episodeOptions)
+            option.Enabled = false;
+
+        _settingsButton.Enabled = false;
+        _playButton.Enabled = true;
+        _playButton.Text = "FORCE STOP";
+        _playButton.BackColor = Color.FromArgb(214, 62, 74);
+        _playButton.ForeColor = Color.White;
+        _statusLabel.Text = $"Running: {episode.Name}";
+    }
+
+    private void RestoreReadyState()
+    {
+        foreach (EpisodeOption option in _episodeOptions)
+            option.Enabled = true;
+
+        _playButton.Text = "PLAY EPISODE";
+        _playButton.BackColor = Color.FromArgb(19, 174, 235);
+        _playButton.ForeColor = Color.FromArgb(7, 16, 23);
+        _playButton.Enabled = SelectedEpisode() is not null;
+        _settingsButton.Enabled = !string.IsNullOrWhiteSpace(SelectedEpisode()?.Preferences);
     }
 
     private void OpenEpisodeSettings()
