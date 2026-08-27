@@ -405,10 +405,10 @@ internal sealed class LauncherForm : Form
 
         List<string> preferencePaths = _config.Episodes
             .Where(episode => !string.IsNullOrWhiteSpace(episode.Preferences))
-            .Select(episode => ResolveFromLauncher(episode.Preferences!))
+            .Select(ResolvePreferencePath)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        string sourcePath = ResolveFromLauncher(selectedEpisode.Preferences);
+        string sourcePath = ResolvePreferencePath(selectedEpisode);
 
         try
         {
@@ -441,6 +441,12 @@ internal sealed class LauncherForm : Form
 
     private Episode? SelectedEpisode() =>
         _episodeOptions.FirstOrDefault(option => option.Checked)?.Episode;
+
+    private string ResolvePreferencePath(Episode episode)
+    {
+        string configuredPath = ResolveFromLauncher(episode.Preferences!);
+        return EpisodePreferenceLocator.ResolveConfiguredPath(configuredPath, episode.Section);
+    }
 
     private string ResolveFromLauncher(string configuredPath)
     {

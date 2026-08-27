@@ -4,15 +4,15 @@ namespace BackToTheFutureLauncher;
 
 internal static class EpisodePreferenceInstaller
 {
-    private sealed record Template(string DestinationFolder, string ResourceName);
+    private sealed record Template(int EpisodeNumber, string ResourceName);
 
     private static readonly Template[] Templates =
     [
-        new("Episode 1", "EpisodePreferences.Episode1.prefs.prop"),
-        new("Back to the Future 2", "EpisodePreferences.Episode2.prefs.prop"),
-        new("Back to the Future 3", "EpisodePreferences.Episode3.prefs.prop"),
-        new("Back to the Future 4", "EpisodePreferences.Episode4.prefs.prop"),
-        new("Back to the Future 5", "EpisodePreferences.Episode5.prefs.prop")
+        new(1, "EpisodePreferences.Episode1.prefs.prop"),
+        new(2, "EpisodePreferences.Episode2.prefs.prop"),
+        new(3, "EpisodePreferences.Episode3.prefs.prop"),
+        new(4, "EpisodePreferences.Episode4.prefs.prop"),
+        new(5, "EpisodePreferences.Episode5.prefs.prop")
     ];
 
     public static void InstallMissing()
@@ -32,11 +32,13 @@ internal static class EpisodePreferenceInstaller
         Assembly assembly = typeof(EpisodePreferenceInstaller).Assembly;
         foreach (Template template in Templates)
         {
-            string episodeDirectory = Path.Combine(telltaleDirectory, template.DestinationFolder);
-            string destinationPath = Path.Combine(episodeDirectory, "prefs.prop");
+            string destinationPath = EpisodePreferenceLocator.GetPreferredPath(
+                telltaleDirectory, template.EpisodeNumber);
             if (File.Exists(destinationPath))
                 continue;
 
+            string episodeDirectory = Path.GetDirectoryName(destinationPath)
+                ?? throw new InvalidDataException("The episode preference destination is invalid.");
             Directory.CreateDirectory(episodeDirectory);
             using Stream source = assembly.GetManifestResourceStream(template.ResourceName)
                 ?? throw new InvalidDataException(
