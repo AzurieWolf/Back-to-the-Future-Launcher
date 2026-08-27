@@ -1,7 +1,8 @@
 # Back to the Future Episode Launcher
 
 A better launcher for Back to the Future: The Game by Telltale Games.
-with a small, fixed-size Windows launcher that reads its episode list and background image from `launcher.ini`.
+
+This launcher is a small, fixed-size Windows launcher that reads its episode list and background image from `launcher.ini`.
 
 ## Folder layout
 
